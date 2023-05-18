@@ -25,7 +25,10 @@ def generate_html_img(frame) -> str:
     image.save(buffered, format="PNG")
     image_base64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
 
-    content = f'<img src="data:image/png;base64,{image_base64}" alt="Image">'
+    content = (
+        f'<img src="data:image/png;base64,{image_base64}" '
+        f'alt="Image" class="image">'
+    )
 
     return content
 
@@ -36,7 +39,11 @@ def generate_html_with_img_list(img_list: list[str]):
     # Генерация содержимого HTML-файла
     html_content = f"""
     <html>
-    <head></head>
+    <head>
+        <style>
+            .image {{display: block;}}
+        </style>
+    </head>
     <body>{content}</body>
     </html>
     """
@@ -141,7 +148,6 @@ def extract_frames(video_path: str,
 
 
 def main():
-    # Пример использования функции extract_frames
     video_path = (
         '../in/Minor Swing Django Reinhardt - '
         'Solo et tablature (Gyspy jazz free tab).mp4'
