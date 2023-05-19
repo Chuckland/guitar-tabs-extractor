@@ -13,11 +13,6 @@ def create_directory(path: str) -> str:
     return os.path.abspath(path)
 
 
-def save_frame_as_image(frame, frame_num, output_path):
-    frame_image = Image.fromarray(frame)
-    frame_image.save(f'{output_path}/frame{frame_num}.png')
-
-
 def generate_html_img(frame) -> str:
     # Преобразование изображения в строку base64
     image = Image.fromarray(frame)
@@ -25,26 +20,75 @@ def generate_html_img(frame) -> str:
     image.save(buffered, format="PNG")
     image_base64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
 
-    content = (
-        f'<img src="data:image/png;base64,{image_base64}" '
-        f'alt="Image" class="image">'
-    )
+    content = f"""
+    <div class="image">
+        <div class="image__container">
+            <img src="data:image/png;base64,{image_base64}" alt="Image"
+            class="image">
+        </div>
+        <div class="image__buttons">
+            <button class="image__hideButton">\u00D7</button>
+        </div>
+    </div>
+    """
 
     return content
 
 
-def generate_html_with_img_list(img_list: list[str]):
-    content = '\n'.join(img_list)
+def get_scripts() -> str:
+    with open('script.js', 'r') as file:
+        return file.read()
+
+
+def get_styles() -> str:
+    with open('styles.css', 'r') as file:
+        return file.read()
+
+
+def shorten(s: str) -> str:
+    result = s
+    max_len = 70
+    right = 15
+    if len(s) > max_len:
+        left = (
+            max_len - right
+            if max_len - right < len(s) - right
+            else len(s) - right
+        )
+        result = s[0:left] + '...' + s[len(s)-right:len(s)]
+    return result
+
+
+def generate_html_with_img_list(img_list: list[str],
+                                file_name: str) -> str:
+    images = '\n'.join(img_list)
+    scripts = get_scripts()
+    styles = get_styles()
+    short_file_name = shorten(file_name)
 
     # Генерация содержимого HTML-файла
     html_content = f"""
     <html>
+    <meta charset="utf-8" />
     <head>
-        <style>
-            .image {{display: block;}}
-        </style>
+        <style>{styles}</style>
+        <script>{scripts}</script>
     </head>
-    <body>{content}</body>
+    <body>
+        <main>
+            <header>
+                <div id="description">
+                    <h1>Табы для гитары</h1>
+                    <p id="sourceDescription">Из видео «{short_file_name}»</p>
+                </div>
+                <div id="showAllImages">
+                    <span id="hiddenImagesNumber" class="hidden"></span>
+                    <button id="showAllImagesButton">Показать все</button>
+                </div>
+            </header>
+            {images}
+        </main>
+    </body>
     </html>
     """
 
@@ -62,6 +106,11 @@ def crop_frame(frame,
     return frame[y:y+height, x:x+width]
 
 
+def get_file_name_without_extension(file_path: str) -> str:
+    file_name = os.path.basename(file_path)
+    return os.path.splitext(file_name)[0]
+
+
 def extract_frames(video_path: str,
                    output_path: str,
                    threshold: int,
@@ -69,7 +118,7 @@ def extract_frames(video_path: str,
                    trim_frames_end: int = 0,
                    start_point: tuple[int, int] = None,
                    width: int = None,
-                   height: int = None):
+                   height: int = None) -> None:
     print('Начинаем извлечение кадров.')
 
     # Открываем видео
@@ -128,16 +177,16 @@ def extract_frames(video_path: str,
         # сохраняем кадр
         if frame_diff_percent > threshold:
             html_img_list.append(generate_html_img(frame))
-
-            # save_frame_as_image(first_frame, frame_num, output_path)
-
             first_frame = gray_frame
             saved_frame_num += 1
 
     # Закрываем видео
     video.release()
 
-    html_content = generate_html_with_img_list(html_img_list)
+    html_content = generate_html_with_img_list(
+        img_list=html_img_list,
+        file_name=get_file_name_without_extension(video_path)
+    )
 
     with open(output_path, 'w') as file:
         file.write(html_content)
@@ -149,19 +198,20 @@ def extract_frames(video_path: str,
 
 def main():
     video_path = (
-        '../in/Minor Swing Django Reinhardt - '
-        'Solo et tablature (Gyspy jazz free tab).mp4'
+        '../in/Hallelujah (Leonard Cohen) - Fingerstyle Lesson + TAB.mp4'
     )
     output_path = '{}/output.html'.format(
         create_directory('../out')
     )
-    threshold = 50
+    threshold = 30
     x = 0
-    y = 477
+    y = 398
     width = 1280 - x
     height = 720 - y
-    trim_frames_start = 30
-    trim_frames_end = 25
+
+    # todo: указывать куски на обрезку в секундах
+    trim_frames_start = 170*29
+    trim_frames_end = 8*29
 
     extract_frames(
         video_path=video_path,
