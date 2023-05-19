@@ -82,8 +82,8 @@ def generate_html_with_img_list(img_list: list[str],
         <main>
             <header>
                 <div id="description">
-                    <h1>Табы для гитары</h1>
-                    <p id="sourceDescription">Из видео «{short_file_name}»</p>
+                    <h1>Табулатуры для гитары</h1>
+                    <p id="sourceDescription">{short_file_name}</p>
                 </div>
                 <div id="showAllImages">
                     <span id="hiddenImagesNumber" class="hidden"></span>
