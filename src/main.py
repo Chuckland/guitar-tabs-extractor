@@ -1,10 +1,14 @@
 import base64
+import json
 import os
 from io import BytesIO
+from typing import Any
 
 import cv2
 import numpy as np
 from PIL import Image
+
+CONFIG_FILE = 'config.json'
 
 
 def create_directory(path: str) -> str:
@@ -55,7 +59,7 @@ def shorten(s: str) -> str:
             if max_len - right < len(s) - right
             else len(s) - right
         )
-        result = s[0:left] + '...' + s[len(s)-right:len(s)]
+        result = s[0:left] + '...' + s[len(s) - right:len(s)]
     return result
 
 
@@ -103,7 +107,7 @@ def crop_frame(frame,
         return frame
 
     x, y = start_point
-    return frame[y:y+height, x:x+width]
+    return frame[y:y + height, x:x + width]
 
 
 def get_file_name_without_extension(file_path: str) -> str:
@@ -114,12 +118,12 @@ def get_file_name_without_extension(file_path: str) -> str:
 def extract_frames(video_path: str,
                    output_path: str,
                    threshold: int,
-                   trim_frames_start: int = 0,
-                   trim_frames_end: int = 0,
+                   skip_start_frames: int = 0,
+                   skip_end_frames: int = 0,
                    start_point: tuple[int, int] = None,
                    width: int = None,
                    height: int = None) -> None:
-    print('Начинаем извлечение кадров.')
+    print('Извлекаем кадры.')
 
     # Открываем видео
     video = cv2.VideoCapture(video_path)
@@ -146,8 +150,8 @@ def extract_frames(video_path: str,
         # Читаем текущий кадр
         ret, frame = video.read()
 
-        if (frame_num < trim_frames_start
-                or frame_num > total_frames - trim_frames_end):
+        if (frame_num < skip_start_frames
+                or frame_num > total_frames - skip_end_frames):
             continue
 
         frame = crop_frame(frame, start_point, width, height)
@@ -170,7 +174,7 @@ def extract_frames(video_path: str,
 
         # Вычисляем процент изменения в кадре
         frame_diff_percent = (
-            (np.count_nonzero(frame_diff) / frame_diff.size) * 100
+                (np.count_nonzero(frame_diff) / frame_diff.size) * 100
         )
 
         # Если процент изменения превышает пороговое значение,
@@ -183,6 +187,9 @@ def extract_frames(video_path: str,
     # Закрываем видео
     video.release()
 
+    print(f'  Всего кадров извлечено: {saved_frame_num}')
+    print("Кадры извлечены.")
+
     html_content = generate_html_with_img_list(
         img_list=html_img_list,
         file_name=get_file_name_without_extension(video_path)
@@ -190,35 +197,161 @@ def extract_frames(video_path: str,
 
     with open(output_path, 'w') as file:
         file.write(html_content)
+    print(f'Сформирован файл: {output_path}')
 
-    print(f'  Всего кадров извлечено: {saved_frame_num}')
 
-    print("Извлечение кадров завершено.")
+def get_non_negative_integer_input(prompt: str) -> int:
+    value = input(prompt)
+    while not value.isdigit() or int(value) < 0:
+        print('Ошибка. Введите неотрицательное целое число.')
+        value = input(prompt)
+    return int(value)
+
+
+def get_data_from_config() -> tuple[
+        str | None, int | None, int | None, int | None, int | None,
+        int | None]:
+    # Проверяем наличие файла config.json и загружаем данные,
+    # если файл существует
+    if os.path.exists(CONFIG_FILE):
+        with open(CONFIG_FILE, "r") as f:
+            config_data = json.load(f)
+    else:
+        config_data = {}
+
+    # Проверяем наличие параметров в config_data
+    # и устанавливаем значения по умолчанию
+    video_path = config_data.get("video_path", None)
+    threshold = config_data.get("threshold", None)
+    x = config_data.get("x", None)
+    y = config_data.get("y", None)
+    skip_start_frames = config_data.get("skip_start_frames", None)
+    skip_end_frames = config_data.get("skip_end_frames", None)
+
+    return video_path, threshold, x, y, skip_start_frames, skip_end_frames
+
+
+def get_param(param_name: str,
+              last_value: Any | None,
+              request_text: str,
+              error_text: str,
+              validation: Any) -> str:
+    indent_level_2 = ' ' * 2
+    result = last_value
+    last_value_text = ''
+    print(param_name)
+    if result is not None:
+        print(
+            f'{indent_level_2}Прошлое значение: {result}'
+        )
+        last_value_text = (
+            ' (или нажмите Enter, чтобы использовать прошлое значение)'
+        )
+    result = input(
+        f'{indent_level_2}{request_text}{last_value_text}: '
+    ) or result
+
+    # Проверка video_path
+    while result is None or not validation(result):
+        print(f'{indent_level_2}{error_text}')
+        result = input(
+            f'{indent_level_2}{request_text}{last_value_text}: '
+        ) or result
+
+    return result
+
+
+def save_params(params: dict) -> None:
+    # Сохраняем параметры в файл config.json
+    with open(CONFIG_FILE, "w") as f:
+        json.dump(params, f, indent=4)
+
+
+def get_user_input() -> tuple[str, int, int, int, int, int]:
+    (
+        video_path, threshold, x, y, skip_start_frames, skip_end_frames
+    ) = get_data_from_config()
+
+    video_path = get_param(
+        param_name='Видео',
+        last_value=video_path,
+        request_text='Введите путь до mp4-файла',
+        error_text='Ошибка. Введите путь к существующему mp4-файлу.',
+        validation=lambda v: v.endswith('.mp4') and os.path.exists(v)
+    )
+    threshold = get_param(
+        param_name='Пороговое значение для сравнения кадров',
+        last_value=threshold,
+        request_text='Введите число от 0 до 100',
+        error_text='Ошибка. Введите число от 0 до 100.',
+        validation=lambda v: str(v).isdigit() and (0 <= int(v) <= 100)
+    )
+    x = get_param(
+        param_name='Координата X левой верхней точки',
+        last_value=x,
+        request_text='Введите неотрицательное число',
+        error_text='Ошибка. Введите неотрицательное целое число.',
+        validation=lambda v: str(v).isdigit() and int(v) >= 0
+    )
+    y = get_param(
+        param_name='Координата Y левой верхней точки',
+        last_value=y,
+        request_text='Введите неотрицательное число',
+        error_text='Ошибка. Введите неотрицательное целое число.',
+        validation=lambda v: str(v).isdigit() and int(v) >= 0
+    )
+    skip_start_frames = get_param(
+        param_name='Сколько кадров пропустить в начале',
+        last_value=skip_start_frames,
+        request_text='Введите неотрицательное число',
+        error_text='Ошибка. Введите неотрицательное целое число.',
+        validation=lambda v: str(v).isdigit() and int(v) >= 0
+    )
+    skip_end_frames = get_param(
+        param_name='Сколько кадров пропустить в конце',
+        last_value=skip_end_frames,
+        request_text='Введите неотрицательное число',
+        error_text='Ошибка. Введите неотрицательное целое число.',
+        validation=lambda v: str(v).isdigit() and int(v) >= 0
+    )
+
+    save_params({
+        'video_path': video_path,
+        'threshold': int(threshold),
+        'x': int(x),
+        'y': int(y),
+        'skip_start_frames': int(skip_start_frames),
+        'skip_end_frames': int(skip_end_frames)
+    })
+
+    return (
+        video_path,
+        int(threshold),
+        int(x),
+        int(y),
+        int(skip_start_frames),
+        int(skip_end_frames),
+    )
 
 
 def main():
-    video_path = (
-        '../in/Hallelujah (Leonard Cohen) - Fingerstyle Lesson + TAB.mp4'
-    )
-    output_path = '{}/output.html'.format(
-        create_directory('../out')
-    )
-    threshold = 30
-    x = 0
-    y = 398
+    (
+        video_path, threshold, x, y, skip_start_frames, skip_end_frames
+    ) = get_user_input()
     width = 1280 - x
     height = 720 - y
 
-    # todo: указывать куски на обрезку в секундах
-    trim_frames_start = 170*29
-    trim_frames_end = 8*29
+    output_path = '{dir}/{file_name}.html'.format(
+        dir=create_directory('../out'),
+        file_name=get_file_name_without_extension(video_path)
+    )
 
     extract_frames(
         video_path=video_path,
         output_path=output_path,
         threshold=threshold,
-        trim_frames_start=trim_frames_start,
-        trim_frames_end=trim_frames_end,
+        skip_start_frames=skip_start_frames,
+        skip_end_frames=skip_end_frames,
         start_point=(x, y),
         width=width,
         height=height
