@@ -24,13 +24,18 @@ def generate_html_img(frame) -> str:
     image.save(buffered, format="PNG")
     image_base64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
 
+    # todo: вставить нормальные иконки для кнопок
     content = f"""
     <div class="image">
-        <div class="image__container">
-            <img src="data:image/png;base64,{image_base64}" alt="Image"
-            class="image">
-        </div>
+        <img src="data:image/png;base64,{image_base64}" alt="Image" class="image__content">
+        <div class="image__innerBorder"></div>
+        <div class="image__slider image__slider_left hidden"></div>
+        <div class="image__slider image__slider_right hidden"></div>
         <div class="image__buttons">
+            <label class="image__editButton checkbox">
+                <input type="checkbox">
+                <div class="checkbox__background">e</div>
+            </label>
             <button class="image__hideButton">\u00D7</button>
         </div>
     </div>
@@ -70,6 +75,7 @@ def generate_html_with_img_list(img_list: list[str],
     styles = get_styles()
     short_file_name = shorten(file_name)
 
+    # todo: добавить кнопки undo и redo
     # Генерация содержимого HTML-файла
     html_content = f"""
     <html>
