@@ -67,8 +67,8 @@ def generate_html_with_img_list(img_list: list[str],
     # Генерация содержимого HTML-файла
     html_content = f"""
     <html>
-    <meta charset="utf-8" />
     <head>
+        <meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
         <style>{styles}</style>
         <script>{scripts}</script>
     </head>

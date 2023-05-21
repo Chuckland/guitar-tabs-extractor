@@ -106,15 +106,12 @@ const sliderRightDoubleClickHandler = (e) => {
 };
 
 const mouseOverHandler = (e) => {
-    // fixme:
-    //   сейчас слайдер и курсор двигаются не синхронно
-    //   причина в вычислении позиции картинки
-
     if (currentDraggingSliderLeft || currentDraggingSliderRight) {
         const content = currentImageInDrag.querySelector('.image__content');
 
         // Вычисляем позицию курсора относительно картинки
-        const currentCursorPos = e.pageX - content.offsetLeft;
+        const currentCursorPos = e.pageX - content?.getBoundingClientRect()?.left;
+
         const minSlidersDistance = 10;
         let newSliderPos;
 
