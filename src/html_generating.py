@@ -20,7 +20,6 @@ def generate_html_img(frame) -> str:
     <div class="image">
         <img src="data:image/png;base64,{image_base64}" alt="Image"
         class="image__content">
-        <div class="image__innerBorder"></div>
         <div class="image__slider image__slider_left hidden"></div>
         <div class="image__slider image__slider_right hidden"></div>
         <div class="image__buttons">
@@ -87,7 +86,10 @@ def generate_html_with_img_list(img_list: list[str],
                     </button>
                 </div>
             </header>
-            {images}
+            <div class="imagesContainer">
+                <div class="imagesContainer__innerBorder"></div>
+                {images}
+            </div>
         </main>
     </body>
     </html>

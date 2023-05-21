@@ -93,7 +93,11 @@ button:active {
     width: 100%;
 }
 
-.image__innerBorder {
+.imagesContainer {
+    position: relative;
+}
+
+.imagesContainer__innerBorder {
     position: absolute;
     top: 1px;
     bottom: 1px;
@@ -178,18 +182,22 @@ button:active {
     background-color: #f2f2f2;
 }
 
-.checkbox__background_checked {
+.checkbox_checked .checkbox__background {
     color: #fff;
     background-color: rgb(61, 61, 61);
     box-shadow: rgb(61, 61, 61) 0px 0px 0px 1px;
 }
 
-.checkbox__background_checked:hover {
+.checkbox_checked .checkbox__background:hover {
     background-color: rgb(61, 61, 61);
     box-shadow: rgb(61, 61, 61) 0px 0px 0px 1px;
 }
 
-.checkbox__background_checked:active {
+.checkbox_checked .checkbox__background:active {
     background-color: rgb(61, 61, 61);
     box-shadow: rgb(61, 61, 61) 0px 0px 0px 1px;
+}
+
+.checkbox_checked svg path {
+    fill: #fff;
 }

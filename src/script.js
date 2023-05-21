@@ -217,7 +217,8 @@ const toggleEditButton = (button) => {
     if (button === currentActiveEditButton) {
         currentActiveEditButton = null;
 
-        const background = button.querySelector('.checkbox__background');
+        // Переводим чекбокс в невыбранное состояние
+        button.classList.remove('checkbox_checked');
 
         const image = getAncestorByClassName(button, 'image');
         const sliderLeft = image.querySelector('.image__slider_left');
@@ -226,9 +227,6 @@ const toggleEditButton = (button) => {
         // Скрываем ползунки
         sliderLeft?.classList.add('hidden');
         sliderRight?.classList.add('hidden');
-
-        // Чекбокс переводим в невыбранное состояние
-        background?.classList.remove('checkbox__background_checked');
     } else {
         // Если есть текущая активная кнопка — переключаем её состояние
         if (currentActiveEditButton) {
@@ -238,7 +236,8 @@ const toggleEditButton = (button) => {
         // Записываем целевую кнопку как текущую активную
         currentActiveEditButton = button;
 
-        const background = button.querySelector('.checkbox__background');
+        // Переводим чекбокс в выбранное состояние
+        button.classList.add('checkbox_checked');
 
         const image = getAncestorByClassName(button, 'image');
         const sliderLeft = image.querySelector('.image__slider_left');
@@ -247,9 +246,6 @@ const toggleEditButton = (button) => {
         // Показываем ползунки
         sliderLeft?.classList.remove('hidden');
         sliderRight?.classList.remove('hidden');
-
-        // Чекбокс переводим в выбранное состояние
-        background?.classList.add('checkbox__background_checked');
     }
 };
 
