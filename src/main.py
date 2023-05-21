@@ -24,19 +24,25 @@ def generate_html_img(frame) -> str:
     image.save(buffered, format="PNG")
     image_base64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
 
+    icon_pencil = get_icon('pencil-16.svg')
+    icon_eye_off = get_icon('eye-off-16.svg')
+
     # todo: вставить нормальные иконки для кнопок
     content = f"""
     <div class="image">
-        <img src="data:image/png;base64,{image_base64}" alt="Image" class="image__content">
+        <img src="data:image/png;base64,{image_base64}" alt="Image"
+        class="image__content">
         <div class="image__innerBorder"></div>
         <div class="image__slider image__slider_left hidden"></div>
         <div class="image__slider image__slider_right hidden"></div>
         <div class="image__buttons">
             <label class="image__editButton checkbox">
                 <input type="checkbox">
-                <div class="checkbox__background">e</div>
+                <div class="checkbox__background">
+                    {icon_pencil}
+                </div>
             </label>
-            <button class="image__hideButton">\u00D7</button>
+            <button class="image__hideButton">{icon_eye_off}</button>
         </div>
     </div>
     """
@@ -51,6 +57,12 @@ def get_scripts() -> str:
 
 def get_styles() -> str:
     with open('styles.css', 'r') as file:
+        return file.read()
+
+
+def get_icon(icon_name):
+    icon_dir = 'assets'
+    with open(f'{icon_dir}/{icon_name}', 'r') as file:
         return file.read()
 
 
@@ -75,6 +87,8 @@ def generate_html_with_img_list(img_list: list[str],
     styles = get_styles()
     short_file_name = shorten(file_name)
 
+    icon_eye_open = get_icon('eye-open-16.svg')
+
     # todo: добавить кнопки undo и redo
     # Генерация содержимого HTML-файла
     html_content = f"""
@@ -93,7 +107,10 @@ def generate_html_with_img_list(img_list: list[str],
                 </div>
                 <div id="showAllImages">
                     <span id="hiddenImagesNumber" class="hidden"></span>
-                    <button id="showAllImagesButton">Показать все</button>
+                    <button id="showAllImagesButton">
+                        {icon_eye_open}
+                        <span>Показать все</span>
+                    </button>
                 </div>
             </header>
             {images}
