@@ -1,7 +1,6 @@
 let currentDraggingSliderLeft;
 let currentDraggingSliderRight;
-let currentImageInDrag;
-let currentActiveEditButton;
+let currentImageInEdit;
 
 const getAncestorByClassName = (node, className) => {
     let result = node;
@@ -86,7 +85,6 @@ const initImagesObserving = () => {
 const sliderLeftMouseDownHandler = (e) => {
     e.preventDefault();
     currentDraggingSliderLeft = e.target;
-    currentImageInDrag = getAncestorByClassName(currentDraggingSliderLeft, 'image');
 };
 
 const sliderLeftDoubleClickHandler = (e) => {
@@ -97,7 +95,6 @@ const sliderLeftDoubleClickHandler = (e) => {
 const sliderRightMouseDownHandler = (e) => {
     e.preventDefault();
     currentDraggingSliderRight = e.target;
-    currentImageInDrag = getAncestorByClassName(currentDraggingSliderRight, 'image');
 };
 
 const sliderRightDoubleClickHandler = (e) => {
@@ -107,7 +104,7 @@ const sliderRightDoubleClickHandler = (e) => {
 
 const mouseOverHandler = (e) => {
     if (currentDraggingSliderLeft || currentDraggingSliderRight) {
-        const content = currentImageInDrag.querySelector('.image__content');
+        const content = currentImageInEdit.querySelector('.image__content');
 
         // Вычисляем позицию курсора относительно картинки
         const currentCursorPos = e.pageX - content?.getBoundingClientRect()?.left;
@@ -117,7 +114,7 @@ const mouseOverHandler = (e) => {
 
         // Обрабатываем перетаскивание левого слайдера
         if (currentDraggingSliderLeft) {
-            const sliderRight = currentImageInDrag.querySelector('.image__slider_right');
+            const sliderRight = currentImageInEdit.querySelector('.image__slider_right');
 
             if (currentCursorPos < 0) {
                 // Если курсор находится слева за пределами картинки — берём левую границу картинки в качестве новой позиции слайдера
@@ -139,7 +136,7 @@ const mouseOverHandler = (e) => {
 
         // Обрабатываем перетаскивание правого слайдера
         if (currentDraggingSliderRight) {
-            const sliderLeft = currentImageInDrag.querySelector('.image__slider_left');
+            const sliderLeft = currentImageInEdit.querySelector('.image__slider_left');
 
             if (currentCursorPos > content.offsetWidth) {
                 // Если курсор находится справа за пределами картинки — берём правую границу картинки в качестве новой позиции слайдера
@@ -212,54 +209,62 @@ const initCropImages = () => {
     });
 };
 
-const toggleEditButton = (button) => {
-    // Если целевая кнопка является текущей активной — сбрасываем активное состояние
-    if (button === currentActiveEditButton) {
-        currentActiveEditButton = null;
-
-        // Переводим чекбокс в невыбранное состояние
-        button.classList.remove('checkbox_checked');
-
-        const image = getAncestorByClassName(button, 'image');
+const toggleEditingImageMode = (image) => {
+    if (image) {
+        const buttons = image.querySelector('.image__buttons');
+        const checkbox = image.querySelector('.checkbox');
         const sliderLeft = image.querySelector('.image__slider_left');
         const sliderRight = image.querySelector('.image__slider_right');
 
-        // Скрываем ползунки
-        sliderLeft?.classList.add('hidden');
-        sliderRight?.classList.add('hidden');
-    } else {
-        // Если есть текущая активная кнопка — переключаем её состояние
-        if (currentActiveEditButton) {
-            toggleEditButton(currentActiveEditButton);
+        // Если на вход поступила картинка, кот-я уже находится в режиме редактирования — выводим её из режима редактирования
+        if (image === currentImageInEdit) {
+            currentImageInEdit = null;
+
+            // Скрываем ползунки
+            sliderLeft?.classList.add('hidden');
+            sliderRight?.classList.add('hidden');
+
+            // Переводим чекбокс в невыбранное состояние
+            checkbox?.classList.remove('checkbox_checked');
+
+            // Открепляем панель с кнопками
+            buttons?.classList.remove('image__buttons_pinned');
+        } else {
+            // Если на вход поступила картинка, кот-я не находится в режиме редактирования — вводим её в режим редактирования
+
+            // Если какая-то картинка была в режиме редактирования — выводим её из режима
+            if (currentImageInEdit) {
+                toggleEditingImageMode(currentImageInEdit);
+            }
+
+            currentImageInEdit = image;
+
+            // Показываем ползунки
+            sliderLeft?.classList.remove('hidden');
+            sliderRight?.classList.remove('hidden');
+
+            // Переводим чекбокс в выбранное состояние
+            checkbox?.classList.add('checkbox_checked');
+
+            // Закрепляем панель с кнопками
+            buttons?.classList.add('image__buttons_pinned');
         }
-
-        // Записываем целевую кнопку как текущую активную
-        currentActiveEditButton = button;
-
-        // Переводим чекбокс в выбранное состояние
-        button.classList.add('checkbox_checked');
-
-        const image = getAncestorByClassName(button, 'image');
-        const sliderLeft = image.querySelector('.image__slider_left');
-        const sliderRight = image.querySelector('.image__slider_right');
-
-        // Показываем ползунки
-        sliderLeft?.classList.remove('hidden');
-        sliderRight?.classList.remove('hidden');
+    } else {
+        // Если на вход поступил null — при наличии активной картинки выводим её из режима редактирования
+        if (currentImageInEdit) {
+            toggleEditingImageMode(currentImageInEdit);
+        }
     }
 };
 
 const editButtonClickHandler = (e) => {
-    // todo: при переходе в режим редактирования панель с кнопками должна быть видна всегда
-
     // todo: добавить выход из режима редактирования при нажатии вне картинки
-
     const target = e.target;
-    const checkbox = getAncestorByClassName(target, 'checkbox');
-    toggleEditButton(checkbox);
+    const image = getAncestorByClassName(target, 'image');
+    toggleEditingImageMode(image);
 };
 
-const initEditButton = () => {
+const initEditButtons = () => {
     const editButtons = document.querySelectorAll('.image__editButton');
     editButtons?.forEach((button) => {
         button.addEventListener('change', editButtonClickHandler);
@@ -271,5 +276,5 @@ document.addEventListener('DOMContentLoaded', () => {
     initShowAllImagesButtonHandler();
     initImagesObserving();
     initCropImages();
-    initEditButton();
+    initEditButtons();
 });

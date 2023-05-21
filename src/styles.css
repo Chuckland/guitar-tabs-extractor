@@ -135,6 +135,10 @@ button:active {
     gap: 8px;
 }
 
+.image__buttons_pinned {
+    opacity: 1;
+}
+
 .image:hover .image__buttons {
     opacity: 1;
 }
