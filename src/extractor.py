@@ -81,7 +81,9 @@ def extract_frames(video_path: str,
         # Если процент изменения превышает пороговое значение,
         # сохраняем кадр
         if frame_diff_percent > threshold:
-            html_img_list.append(generate_html_img(frame))
+            html_img_list.append(
+                generate_html_img(frame=frame, index=saved_frame_num)
+            )
             first_frame = gray_frame
             saved_frame_num += 1
 

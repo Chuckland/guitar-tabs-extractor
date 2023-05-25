@@ -1,14 +1,58 @@
 let currentDraggingSliderLeft;
 let currentDraggingSliderRight;
 let currentImageInEdit;
+let preEditState;
 
 const getAncestorByClassName = (node, className) => {
     let result = node;
-    while (!result?.classList.contains(className)) {
+    while (result && !result?.classList?.contains(className)) {
         result = result.parentElement;
     }
     return result;
 };
+
+const setSliderLeft = (slider, pos) => {
+    if (typeof pos === 'number' || parseInt(pos)) {
+        slider.style.left = pos + 'px';
+    }
+};
+
+const setSliderRight = (slider, pos) => {
+    if (typeof pos === 'number' || parseInt(pos)) {
+        slider.style.right = pos + 'px';
+    }
+};
+
+const getCurrentImageBoundaries = (image) => {
+    const content = image.querySelector('.image__content');
+
+    let imageLeft = 0;
+    let imageRight = content.offsetWidth;
+
+    // Если у элемента с изображением установлен clipPath — вытаскиваем из него значения границ при помощи регулярного выражения
+    const currentClipPath = content.style.clipPath;
+    if (currentClipPath) {
+        const re = /polygon\((?<left>\d+)\D*.*?,\D*(?<right>\d+)/;
+        const groups = re.exec(currentClipPath)?.groups;
+        imageLeft = groups?.left || imageLeft;
+        imageRight = groups?.right || imageRight;
+    }
+
+    return {
+        imageLeft,
+        imageRight
+    }
+};
+
+const setImageVisibleArea = (image, left, right) => {
+    const {imageLeft, imageRight} = getCurrentImageBoundaries(image);
+    const content = image.querySelector('.image__content');
+
+    left = (left === null || left === undefined) ? imageLeft : left;
+    right = (right === null || right === undefined) ? imageRight : right;
+
+    content.style.clipPath = `polygon(${left}px 0, ${right}px 0, ${right}px 100%, ${left}px 100%)`;
+}
 
 const hideImage = (image) => {
     image?.classList?.add('hidden');
@@ -85,24 +129,34 @@ const initImagesObserving = () => {
 const sliderLeftMouseDownHandler = (e) => {
     e.preventDefault();
     currentDraggingSliderLeft = e.target;
+    currentImageInEdit = getAncestorByClassName(currentDraggingSliderLeft, 'image');
 };
 
 const sliderLeftDoubleClickHandler = (e) => {
+    e.preventDefault();
     const target = e.target;
-    target.style.left = 0;
+    const image = getAncestorByClassName(target, 'image');
+    setSliderLeft(target, 0);
+    setImageVisibleArea(image, 0, null);
 };
 
 const sliderRightMouseDownHandler = (e) => {
     e.preventDefault();
     currentDraggingSliderRight = e.target;
+    currentImageInEdit = getAncestorByClassName(currentDraggingSliderRight, 'image');
 };
 
 const sliderRightDoubleClickHandler = (e) => {
+    e.preventDefault();
     const target = e.target;
-    target.style.right = 0;
+    const image = getAncestorByClassName(target, 'image');
+    const content = image.querySelector('.image__content');
+    setSliderRight(target, 0);
+    setImageVisibleArea(image, null, content.offsetWidth);
 };
 
-const mouseOverHandler = (e) => {
+const dragImageSliderHandler = (e) => {
+    // Проверяем, что есть активный ползунок в состоянии перетаскивания
     if (currentDraggingSliderLeft || currentDraggingSliderRight) {
         const content = currentImageInEdit.querySelector('.image__content');
 
@@ -112,9 +166,11 @@ const mouseOverHandler = (e) => {
         const minSlidersDistance = 10;
         let newSliderPos;
 
+        const sliderRight = currentImageInEdit.querySelector('.image__slider_right');
+        const sliderLeft = currentImageInEdit.querySelector('.image__slider_left');
+
         // Обрабатываем перетаскивание левого слайдера
         if (currentDraggingSliderLeft) {
-            const sliderRight = currentImageInEdit.querySelector('.image__slider_right');
 
             if (currentCursorPos < 0) {
                 // Если курсор находится слева за пределами картинки — берём левую границу картинки в качестве новой позиции слайдера
@@ -128,16 +184,11 @@ const mouseOverHandler = (e) => {
             } else {
                 newSliderPos = currentCursorPos;
             }
-            // Меняем позицию левого ползунка.
-            // В ответ на изменение позиции наблюдатель (observer)
-            // реализует логику обновления видимой части картинки
-            currentDraggingSliderLeft.style.left = newSliderPos + 'px';
+            setSliderLeft(currentDraggingSliderLeft, newSliderPos);
         }
 
         // Обрабатываем перетаскивание правого слайдера
         if (currentDraggingSliderRight) {
-            const sliderLeft = currentImageInEdit.querySelector('.image__slider_left');
-
             if (currentCursorPos > content.offsetWidth) {
                 // Если курсор находится справа за пределами картинки — берём правую границу картинки в качестве новой позиции слайдера
                 newSliderPos = content.offsetWidth;
@@ -150,34 +201,18 @@ const mouseOverHandler = (e) => {
             } else {
                 newSliderPos = currentCursorPos;
             }
-            // Меняем позицию правого ползунка.
-            // В ответ на изменение позиции наблюдатель (observer)
-            // реализует логику обновления видимой части картинки
-            currentDraggingSliderRight.style.right = content.offsetWidth - newSliderPos + 'px';
+            setSliderRight(currentDraggingSliderRight, content.offsetWidth - newSliderPos);
         }
+
+        const leftBoundary = sliderLeft.offsetLeft;
+        const rightBoundary = sliderRight.offsetLeft + sliderRight.offsetWidth;
+        setImageVisibleArea(currentImageInEdit, leftBoundary, rightBoundary);
     }
 };
 
-const mouseUpHandler = () => {
+const imageSliderMouseUpHandler = () => {
     currentDraggingSliderLeft = null;
     currentDraggingSliderRight = null;
-};
-
-const sliderPositionMutationHandler = (mutationList, observer) => {
-    mutationList.forEach(mutation => {
-        if (mutation.attributeName === 'style') {
-            const image = getAncestorByClassName(mutation.target, 'image');
-            if (image) {
-                const content = image.querySelector('.image__content');
-                const sliderLeft = image.querySelector('.image__slider_left');
-                const sliderRight = image.querySelector('.image__slider_right');
-
-                const leftBoundary = sliderLeft.offsetLeft;
-                const rightBoundary = sliderRight.offsetLeft + sliderRight.offsetWidth;
-                content.style.clipPath = `polygon(${leftBoundary}px 0, ${rightBoundary}px 0, ${rightBoundary}px 100%, ${leftBoundary}px 100%)`;
-            }
-        }
-    });
 };
 
 const initCropImages = () => {
@@ -187,15 +222,6 @@ const initCropImages = () => {
         const sliderLeft = image.querySelector('.image__slider_left');
         const sliderRight = image.querySelector('.image__slider_right');
 
-        // Добавляем наблюдателя за изменением позиций ползунков
-        const observer = new MutationObserver(sliderPositionMutationHandler);
-        const observerOptions = {
-            attributes: true,
-            attributeFilter: ['style']
-        }
-        observer.observe(sliderLeft, observerOptions);
-        observer.observe(sliderRight, observerOptions);
-
         if (image && content && sliderLeft && sliderRight) {
             sliderLeft.addEventListener('mousedown', sliderLeftMouseDownHandler);
             sliderLeft.addEventListener('dblclick', sliderLeftDoubleClickHandler);
@@ -203,72 +229,124 @@ const initCropImages = () => {
             sliderRight.addEventListener('mousedown', sliderRightMouseDownHandler);
             sliderRight.addEventListener('dblclick', sliderRightDoubleClickHandler);
 
-            document.addEventListener('mousemove', mouseOverHandler);
-            document.addEventListener('mouseup', mouseUpHandler);
+            document.addEventListener('mousemove', dragImageSliderHandler);
+            document.addEventListener('mouseup', imageSliderMouseUpHandler);
         }
     });
 };
 
-const toggleEditingImageMode = (image) => {
-    if (image) {
-        const buttons = image.querySelector('.image__buttons');
-        const checkbox = image.querySelector('.checkbox');
+const savePreEditState = (images) => {
+    preEditState = {};
+    images?.forEach((image) => {
+        const {imageLeft, imageRight} = getCurrentImageBoundaries(image);
+
         const sliderLeft = image.querySelector('.image__slider_left');
         const sliderRight = image.querySelector('.image__slider_right');
 
-        // Если на вход поступила картинка, кот-я уже находится в режиме редактирования — выводим её из режима редактирования
-        if (image === currentImageInEdit) {
-            currentImageInEdit = null;
+        let match = sliderLeft?.style?.left?.match(/\d+/);
+        const sliderLeftPos = match?.at(0) || 0;
 
-            // Скрываем ползунки
-            sliderLeft?.classList.add('hidden');
-            sliderRight?.classList.add('hidden');
+        match = sliderRight?.style?.right?.match(/\d+/);
+        const sliderRightPos = match?.at(0) || 0;
 
-            // Переводим чекбокс в невыбранное состояние
-            checkbox?.classList.remove('checkbox_checked');
+        preEditState[image.id] = {
+            imageLeft,
+            imageRight,
+            sliderLeftPos,
+            sliderRightPos,
+        };
+    });
+};
 
-            // Открепляем панель с кнопками
-            buttons?.classList.remove('image__buttons_pinned');
-        } else {
-            // Если на вход поступила картинка, кот-я не находится в режиме редактирования — вводим её в режим редактирования
+const enterEditMode = () => {
+    // Ищем все не скрытые изображения
+    const images = document.querySelectorAll('.image:not(.hidden)');
+    const defaultButtons = document.querySelector('#defaultButtons');
+    const editModePanel = document.querySelector('#editModePanel');
 
-            // Если какая-то картинка была в режиме редактирования — выводим её из режима
-            if (currentImageInEdit) {
-                toggleEditingImageMode(currentImageInEdit);
-            }
+    images.forEach((image) => {
+        const sliderLeft = image.querySelector('.image__slider_left');
+        const sliderRight = image.querySelector('.image__slider_right');
 
-            currentImageInEdit = image;
+        // Показываем ползунки
+        sliderLeft?.classList.remove('hidden');
+        sliderRight?.classList.remove('hidden');
+    });
 
-            // Показываем ползунки
-            sliderLeft?.classList.remove('hidden');
-            sliderRight?.classList.remove('hidden');
+    // Скрываем глобальные кнопки
+    defaultButtons?.classList.add('hidden');
 
-            // Переводим чекбокс в выбранное состояние
-            checkbox?.classList.add('checkbox_checked');
+    // Отображаем панель редактирования
+    editModePanel?.classList.remove('hidden');
 
-            // Закрепляем панель с кнопками
-            buttons?.classList.add('image__buttons_pinned');
-        }
-    } else {
-        // Если на вход поступил null — при наличии активной картинки выводим её из режима редактирования
-        if (currentImageInEdit) {
-            toggleEditingImageMode(currentImageInEdit);
-        }
-    }
+    // Сохраняем состояние видимых изображений до редактирования
+    // К моменту сохранения состояния уже должны быть видны ползунки
+    savePreEditState(images);
+};
+
+const exitEditMode = () => {
+    // Ищем все не скрытые изображения
+    const images = document.querySelectorAll('.image:not(.hidden)');
+    const defaultButtons = document.querySelector('#defaultButtons');
+    const editModePanel = document.querySelector('#editModePanel');
+
+    images.forEach((image) => {
+        const sliderLeft = image.querySelector('.image__slider_left');
+        const sliderRight = image.querySelector('.image__slider_right');
+
+        // Скрываем ползунки
+        sliderLeft?.classList.add('hidden');
+        sliderRight?.classList.add('hidden');
+    });
+
+    // Отображаем глобальные кнопки
+    defaultButtons?.classList.remove('hidden');
+
+    // Скрываем панель редактирования
+    editModePanel?.classList.add('hidden');
 };
 
 const editButtonClickHandler = (e) => {
-    // todo: добавить выход из режима редактирования при нажатии вне картинки
-    const target = e.target;
-    const image = getAncestorByClassName(target, 'image');
-    toggleEditingImageMode(image);
+    enterEditMode();
 };
 
-const initEditButtons = () => {
-    const editButtons = document.querySelectorAll('.image__editButton');
-    editButtons?.forEach((button) => {
-        button.addEventListener('change', editButtonClickHandler);
-    });
+const resetPreEditState = () => {
+    preEditState = null;
+};
+
+const confirmEditButtonClickHandler = () => {
+    resetPreEditState();
+    exitEditMode();
+};
+
+const recoverToPreEditState = () => {
+    Object.entries(preEditState).forEach((entry) => {
+        const [id, positions] = entry;
+
+        const image = document.querySelector(`#${id}`);
+        const sliderLeft = image.querySelector(`.image__slider_left`);
+        const sliderRight = image.querySelector(`.image__slider_right`);
+
+        setSliderLeft(sliderLeft, positions.sliderLeftPos);
+        setSliderRight(sliderRight, positions.sliderRightPos);
+        setImageVisibleArea(image, positions.imageLeft, positions.imageRight);
+    })
+};
+
+const cancelEditButtonClickHandler = () => {
+    recoverToPreEditState();
+    exitEditMode();
+};
+
+const initEditingButtons = () => {
+    const editButton = document.querySelector('#edit');
+    editButton?.addEventListener('click', editButtonClickHandler);
+
+    const confirmEditButton = document.querySelector('#confirmEdit');
+    confirmEditButton?.addEventListener('click', confirmEditButtonClickHandler);
+
+    const cancelEditButton = document.querySelector('#cancelEdit');
+    cancelEditButton?.addEventListener('click', cancelEditButtonClickHandler);
 };
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -276,5 +354,5 @@ document.addEventListener('DOMContentLoaded', () => {
     initShowAllImagesButtonHandler();
     initImagesObserving();
     initCropImages();
-    initEditButtons();
+    initEditingButtons();
 });
