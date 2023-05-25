@@ -1,14 +1,13 @@
-import string
 from unittest import TestCase
 
-from main import shorten
+from utils import shorten
 
 
-class MainTest(TestCase):
+class UtilsTest(TestCase):
     def test_shorten(self):
         # Тестируем сокращение строки, в которой меньше 70 символов
         s = 'Название'
-        actual = shorten(s)
+        actual = shorten(s=s, max_len=70)
         expected = 'Название'
         self.assertEqual(first=actual, second=expected)
 
@@ -18,7 +17,7 @@ class MainTest(TestCase):
             'abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabc'
             'defghijklmnopqrs'
         )
-        actual = shorten(s)
+        actual = shorten(s=s, max_len=70)
         expected = (
             'abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabc...'
             'efghijklmnopqrs'
@@ -30,7 +29,7 @@ class MainTest(TestCase):
             'abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcd'
             'efghijklmnopqrstuvwxyzabcdefghijklmnopqrstuv'
         )
-        actual = shorten(s)
+        actual = shorten(s=s, max_len=70)
         expected = (
             'abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabc...'
             'hijklmnopqrstuv'

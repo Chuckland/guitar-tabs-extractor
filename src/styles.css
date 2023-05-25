@@ -1,7 +1,9 @@
 body {
     font-family: sans-serif;
     font-size: 16px;
+    color: #222;
 }
+
 main {
     display: flex;
     flex-direction: column;
@@ -9,6 +11,7 @@ main {
     max-width: 960px;
     margin: 0 auto;
 }
+
 header {
     display: flex;
     flex-direction: row;
@@ -17,14 +20,18 @@ header {
     padding: 0 8px;
     margin-bottom: 16px;
 }
+
 button {
     margin: 0;
     padding: 8px 12px;
     cursor: pointer;
 
     display: flex;
+    flex-direction: row;
     justify-content: center;
     align-items: center;
+    gap: 8px;
+
     min-width: 24px;
     min-height: 24px;
     background-color: #fff;
@@ -33,55 +40,219 @@ button {
     box-shadow: rgba(0,0,0,.16) 0px 0px 0px 1px;
     font-size: 16px;
 }
+
 button:hover {
     box-shadow: rgba(0,0,0,.32) 0px 0px 0px 1px;
     background-color: #f7f7f7;
 }
+
 button:active {
     background-color: #f2f2f2;
 }
-#description {
+
+.description {
     display: flex;
     flex-direction: column;
 }
-#description h1 {
+
+.description h1 {
     margin-bottom: 12px;
 }
-#sourceDescription {
+
+.source {
     margin: 0 0 8px 0;
     color: #a3a3a3;
 }
-#showAllImages {
+
+.globalButtons {
+    display: inline-flex;
+    gap: 16px;
+}
+
+.defaultButtons {
+    gap: 16px;
+    display: inline-flex;
+}
+
+.showAllImages {
     display: flex;
     flex-direction: row;
     align-items: center;
     gap: 16px;
 }
-#hiddenImagesNumber {
+
+.hiddenImagesNumber {
     color: #a3a3a3;
 }
+
+.editModePanel {
+    position: relative;
+    gap: 16px;
+    align-items: center;
+    display: inline-flex;
+}
+
+.editModePanel__background {
+    position: absolute;
+    top: -8px;
+    bottom: -8px;
+    left: -8px;
+    right: -8px;
+    background-color: #333;
+    border-radius: 4px;
+    z-index: -1;
+}
+
+.editModePanel__label {
+    display: inline-flex;
+    gap: 8px;
+    align-items: center;
+    color: #fff;
+    padding-left: 8px;
+}
+
+.editModePanel__label svg path {
+    fill: #fff;
+}
+
 .imageList {
     display: flex;
     flex-direction: column;
     gap: 8px;
 }
+
 .image {
     position: relative;
-}
-.image:hover .image__buttons {
-    opacity: 1;
-}
-.image__container {
+    overflow: hidden;
+
     display: flex;
     flex-direction: column;
     justify-content: center;
 }
+
+.image img {
+    width: 100%;
+}
+
+.imagesContainer {
+    position: relative;
+}
+
+.imagesContainer__innerBorder {
+    position: absolute;
+    top: 1px;
+    bottom: 1px;
+    left: 1px;
+    right: 1px;
+    box-shadow: rgba(0,0,0,.16) 0px 0px 0px 1px;
+    z-index: -1;
+}
+
+/* todo показывать слайдеры за пределами картинки */
+.image__slider {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 5px;
+    background-color: rgba(0,0,0,.32);
+    cursor: col-resize;
+}
+
+.image__slider_left {
+    left: 0;
+}
+
+.image__slider_right {
+    right: 0;
+}
+
 .image__buttons {
     opacity: 0;
     position: absolute;
     top: 8px;
     right: 8px;
+
+    display: inline-flex;
+    gap: 8px;
 }
+
+.image__buttons_pinned {
+    opacity: 1;
+}
+
+.image:hover .image__buttons {
+    opacity: 1;
+}
+
 .hidden {
     display: none;
+}
+
+.checkbox {
+    display: inline-flex;
+    cursor: pointer;
+    position: relative;
+}
+
+.checkbox input {
+    display: inline-block;
+    position: absolute;
+    width: 0;
+    height: 0;
+    opacity: 0;
+    z-index: -1;
+}
+
+.checkbox__background {
+    box-shadow: rgba(0,0,0,.16) 0 0 0 1px;
+    border-radius: 4px;
+    background-color: #fff;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-width: 24px;
+    min-height: 24px;
+    margin: 0;
+    padding: 8px 12px;
+    border: 0;
+    box-sizing: border-box;
+}
+
+.checkbox__background:hover {
+    box-shadow: rgba(0,0,0,.32) 0px 0px 0px 1px;
+    background-color: #f7f7f7;
+}
+
+.checkbox__background:active {
+    background-color: #f2f2f2;
+}
+
+.checkbox_checked .checkbox__background {
+    color: #fff;
+    background-color: rgb(61, 61, 61);
+    box-shadow: rgb(61, 61, 61) 0px 0px 0px 1px;
+}
+
+.checkbox_checked .checkbox__background:hover {
+    background-color: rgb(61, 61, 61);
+    box-shadow: rgb(61, 61, 61) 0px 0px 0px 1px;
+}
+
+.checkbox_checked .checkbox__background:active {
+    background-color: rgb(61, 61, 61);
+    box-shadow: rgb(61, 61, 61) 0px 0px 0px 1px;
+}
+
+.checkbox_checked svg path {
+    fill: #fff;
+}
+
+@media print {
+    .hideOnPrint {
+        display: none;
+    }
+
+    .source {
+        color: #222;
+    }
 }
