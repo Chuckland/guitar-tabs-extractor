@@ -79,9 +79,8 @@ def generate_html_with_img_list(img_list: list[str],
                         <div id="showAllImages" class="showAllImages">
                             <span id="hiddenImagesNumber" 
                             class="hiddenImagesNumber hidden"></span>
-                            <button id="showAllImagesButton">
+                            <button id="showAllImagesButton" class="hidden">
                                 {icon_eye_open}
-                                <span>Показать все</span>
                             </button>
                         </div>
                         <button id="edit">{icon_pencil}</button>

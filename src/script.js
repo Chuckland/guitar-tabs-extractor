@@ -94,13 +94,21 @@ const getHiddenImagesNumberText = (num) => {
 
 const updateHiddenImagesNumber = () => {
     const hiddenNum = document.querySelectorAll('.image.hidden')?.length;
-    const element = document.querySelector('#hiddenImagesNumber');
+    const counter = document.querySelector('#hiddenImagesNumber');
+    const showAllImagesButton = document.querySelector('#showAllImagesButton');
+
+    if (!counter || !showAllImagesButton) {
+        return;
+    }
+
     if (hiddenNum >= 1) {
-        element.textContent = getHiddenImagesNumberText(hiddenNum);
-        element.classList.remove('hidden');
+        counter.textContent = getHiddenImagesNumberText(hiddenNum);
+        counter.classList.remove('hidden');
+        showAllImagesButton.classList.remove('hidden');
     } else {
-        element.textContent = '';
-        element.classList.add('hidden');
+        counter.textContent = '';
+        counter.classList.add('hidden');
+        showAllImagesButton.classList.add('hidden');
     }
 };
 
