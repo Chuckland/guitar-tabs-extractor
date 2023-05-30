@@ -2,6 +2,13 @@ let currentDraggingSliderLeft;
 let currentDraggingSliderRight;
 let currentImageInEdit;
 let preEditState;
+let undoRedoEngines = [new UndoRedoEngine()];
+
+// Переменная для хранения информации о действии по перетаскиванию слайдера для реализации анду/реду
+let currentEventToUndoRedo;
+
+// Флаг для того, чтобы отличить двойное нажатие мыши на слайдер от перетаскивания слайдера
+let isDragging = false;
 
 const getAncestorByClassName = (node, className) => {
     let result = node;
@@ -9,6 +16,58 @@ const getAncestorByClassName = (node, className) => {
         result = result.parentElement;
     }
     return result;
+};
+
+const show = (element) => {
+    element?.classList.remove('hidden');
+};
+
+const hide = (element) => {
+    element?.classList.add('hidden');
+};
+
+const disable = (element) => {
+    element.setAttribute('disabled', true);
+};
+
+const enable = (element) => {
+    element?.removeAttribute('disabled');
+};
+
+const undoSliderLeft = (target) => {
+    const {image, slider, positionBefore, boundariesBefore} = target;
+    setSliderLeft(slider, positionBefore);
+    setImageVisibleArea(image, boundariesBefore.imageLeft, boundariesBefore.imageRight);
+};
+
+const redoSliderLeft = (target) => {
+    const {image, slider, positionAfter, boundariesAfter} = target;
+    setSliderLeft(slider, positionAfter);
+    setImageVisibleArea(image, boundariesAfter.imageLeft, boundariesAfter.imageRight);
+};
+
+const undoSliderRight = (target) => {
+    const {image, slider, positionBefore, boundariesBefore} = target;
+    setSliderRight(slider, positionBefore);
+    setImageVisibleArea(image, boundariesBefore.imageLeft, boundariesBefore.imageRight);
+};
+
+const redoSliderRight = (target) => {
+    const {image, slider, positionAfter, boundariesAfter} = target;
+    setSliderRight(slider, positionAfter);
+    setImageVisibleArea(image, boundariesAfter.imageLeft, boundariesAfter.imageRight);
+};
+
+const getSliderLeftPosition = (image) => {
+    const sliderLeft = image.querySelector('.image__slider_left');
+    let match = sliderLeft?.style?.left?.match(/\d+/);
+    return match?.at(0) || 0;
+};
+
+const getSliderRightPosition = (image) => {
+    const sliderRight = image.querySelector('.image__slider_right');
+    match = sliderRight?.style?.right?.match(/\d+/);
+    return match?.at(0) || 0;
 };
 
 const setSliderLeft = (slider, pos) => {
@@ -54,20 +113,39 @@ const setImageVisibleArea = (image, left, right) => {
     content.style.clipPath = `polygon(${left}px 0, ${right}px 0, ${right}px 100%, ${left}px 100%)`;
 }
 
-const hideImage = (image) => {
-    image?.classList?.add('hidden');
-};
-
 const handleHideButtonClick = (event) => {
     const button = event.target;
     const image = getAncestorByClassName(button, 'image');
-    hideImage(image);
+    hide(image);
+
+    undoRedoEngines.at(0)?.add({
+        target: image,
+        undo: show,
+        redo: hide,
+    });
 };
 
 const handleShowAllButtonClick = () => {
-    const images = document.querySelectorAll('.image');
-    images?.forEach((image) => {
-        image.classList.remove('hidden');
+    const hiddenImages = document.querySelectorAll('.image.hidden');
+
+    const showImages = (images) => {
+        images?.forEach((image) => {
+            show(image);
+        });
+    };
+
+    const hideImages = (images) => {
+        images?.forEach((image) => {
+            hide(image);
+        });
+    };
+
+    showImages(hiddenImages);
+
+    undoRedoEngines.at(0).add({
+        target: hiddenImages,
+        undo: hideImages,
+        redo: showImages,
     });
 };
 
@@ -103,12 +181,12 @@ const updateHiddenImagesNumber = () => {
 
     if (hiddenNum >= 1) {
         counter.textContent = getHiddenImagesNumberText(hiddenNum);
-        counter.classList.remove('hidden');
-        showAllImagesButton.classList.remove('hidden');
+        show(counter);
+        show(showAllImagesButton);
     } else {
         counter.textContent = '';
-        counter.classList.add('hidden');
-        showAllImagesButton.classList.add('hidden');
+        hide(counter);
+        hide(showAllImagesButton);
     }
 };
 
@@ -136,36 +214,118 @@ const initImagesObserving = () => {
 
 const sliderLeftMouseDownHandler = (e) => {
     e.preventDefault();
+
+    // Фиксируем слайдер и изображение, над которыми осуществляется действие
     currentDraggingSliderLeft = e.target;
     currentImageInEdit = getAncestorByClassName(currentDraggingSliderLeft, 'image');
+
+    // Фиксируем часть информации о действии для реализации анду / реду
+    currentEventToUndoRedo = {
+        target: {
+            image: currentImageInEdit,
+            slider: currentDraggingSliderLeft,
+            boundariesBefore: getCurrentImageBoundaries(currentImageInEdit),
+            positionBefore: getSliderLeftPosition(currentImageInEdit)
+        },
+        undo: undoSliderLeft,
+        redo: redoSliderLeft
+    };
 };
 
 const sliderLeftDoubleClickHandler = (e) => {
     e.preventDefault();
-    const target = e.target;
-    const image = getAncestorByClassName(target, 'image');
-    setSliderLeft(target, 0);
+
+    const slider = e.target;
+    const image = getAncestorByClassName(slider, 'image');
+
+    // Фиксируем состояния до действия
+    const boundariesBefore = getCurrentImageBoundaries(image);
+    const positionBefore = getSliderLeftPosition(image);
+
+    // Осуществляем действие
+    setSliderLeft(slider, 0);
     setImageVisibleArea(image, 0, null);
+
+    // Фиксируем информацию о действии для реализации анду / реду
+    const eventToUndoRedo = {
+        target: {
+            image,
+            slider,
+            boundariesBefore,
+            boundariesAfter: getCurrentImageBoundaries(image),
+            positionBefore,
+            positionAfter: 0
+        },
+        undo: undoSliderLeft,
+        redo: redoSliderRight
+    };
+
+    // Добавляем действие в движок анду / реду
+    undoRedoEngines.at(0).add(eventToUndoRedo);
+
+    currentEventToUndoRedo = null;
 };
 
 const sliderRightMouseDownHandler = (e) => {
     e.preventDefault();
+
+    // Фиксируем слайдер и изображение, над которыми осуществляется действие
     currentDraggingSliderRight = e.target;
     currentImageInEdit = getAncestorByClassName(currentDraggingSliderRight, 'image');
+
+    // Фиксируем часть информации о действии для реализации анду / реду
+    currentEventToUndoRedo = {
+        target: {
+            image: currentImageInEdit,
+            slider: currentDraggingSliderRight,
+            boundariesBefore: getCurrentImageBoundaries(currentImageInEdit),
+            positionBefore: getSliderRightPosition(currentImageInEdit)
+        },
+        undo: undoSliderRight,
+        redo: redoSliderRight
+    };
 };
 
 const sliderRightDoubleClickHandler = (e) => {
     e.preventDefault();
-    const target = e.target;
-    const image = getAncestorByClassName(target, 'image');
+
+    const slider = e.target;
+    const image = getAncestorByClassName(slider, 'image');
     const content = image.querySelector('.image__content');
-    setSliderRight(target, 0);
+
+    // Фиксируем состояния до действия
+    const boundariesBefore = getCurrentImageBoundaries(image);
+    const positionBefore = getSliderRightPosition(image);
+
+    // Осуществляем действие
+    setSliderRight(slider, 0);
     setImageVisibleArea(image, null, content.offsetWidth);
+
+    // Фиксируем информацию о действии для реализации анду / реду
+    const eventToUndoRedo = {
+        target: {
+            image,
+            slider,
+            boundariesBefore,
+            boundariesAfter: getCurrentImageBoundaries(image),
+            positionBefore,
+            positionAfter: 0
+        },
+        undo: undoSliderRight,
+        redo: redoSliderRight
+    };
+
+    // Добавляем действие в движок анду / реду
+    undoRedoEngines.at(0).add(eventToUndoRedo);
+
+    currentEventToUndoRedo = null;
 };
 
 const dragImageSliderHandler = (e) => {
     // Проверяем, что есть активный ползунок в состоянии перетаскивания
     if (currentDraggingSliderLeft || currentDraggingSliderRight) {
+        isDragging = true;
+
         const content = currentImageInEdit.querySelector('.image__content');
 
         // Вычисляем позицию курсора относительно картинки
@@ -193,6 +353,10 @@ const dragImageSliderHandler = (e) => {
                 newSliderPos = currentCursorPos;
             }
             setSliderLeft(currentDraggingSliderLeft, newSliderPos);
+
+            if (currentEventToUndoRedo) {
+                currentEventToUndoRedo.target.positionAfter = getSliderLeftPosition(currentImageInEdit);
+            }
         }
 
         // Обрабатываем перетаскивание правого слайдера
@@ -210,17 +374,31 @@ const dragImageSliderHandler = (e) => {
                 newSliderPos = currentCursorPos;
             }
             setSliderRight(currentDraggingSliderRight, content.offsetWidth - newSliderPos);
+
+            if (currentEventToUndoRedo) {
+                currentEventToUndoRedo.target.positionAfter = getSliderRightPosition(currentImageInEdit);
+            }
         }
 
         const leftBoundary = sliderLeft.offsetLeft;
         const rightBoundary = sliderRight.offsetLeft + sliderRight.offsetWidth;
         setImageVisibleArea(currentImageInEdit, leftBoundary, rightBoundary);
+
+        if (currentEventToUndoRedo) {
+            currentEventToUndoRedo.target.boundariesAfter = getCurrentImageBoundaries(currentImageInEdit);
+        }
     }
 };
 
 const imageSliderMouseUpHandler = () => {
     currentDraggingSliderLeft = null;
     currentDraggingSliderRight = null;
+
+    if (currentEventToUndoRedo && isDragging) {
+        undoRedoEngines.at(0).add(currentEventToUndoRedo);
+    }
+    currentEventToUndoRedo = null;
+    isDragging = false;
 };
 
 const initCropImages = () => {
@@ -231,11 +409,11 @@ const initCropImages = () => {
         const sliderRight = image.querySelector('.image__slider_right');
 
         if (image && content && sliderLeft && sliderRight) {
-            sliderLeft.addEventListener('mousedown', sliderLeftMouseDownHandler);
             sliderLeft.addEventListener('dblclick', sliderLeftDoubleClickHandler);
-
-            sliderRight.addEventListener('mousedown', sliderRightMouseDownHandler);
             sliderRight.addEventListener('dblclick', sliderRightDoubleClickHandler);
+
+            sliderLeft.addEventListener('mousedown', sliderLeftMouseDownHandler);
+            sliderRight.addEventListener('mousedown', sliderRightMouseDownHandler);
 
             document.addEventListener('mousemove', dragImageSliderHandler);
             document.addEventListener('mouseup', imageSliderMouseUpHandler);
@@ -247,21 +425,11 @@ const savePreEditState = (images) => {
     preEditState = {};
     images?.forEach((image) => {
         const {imageLeft, imageRight} = getCurrentImageBoundaries(image);
-
-        const sliderLeft = image.querySelector('.image__slider_left');
-        const sliderRight = image.querySelector('.image__slider_right');
-
-        let match = sliderLeft?.style?.left?.match(/\d+/);
-        const sliderLeftPos = match?.at(0) || 0;
-
-        match = sliderRight?.style?.right?.match(/\d+/);
-        const sliderRightPos = match?.at(0) || 0;
-
         preEditState[image.id] = {
             imageLeft,
             imageRight,
-            sliderLeftPos,
-            sliderRightPos,
+            sliderLeftPos: getSliderLeftPosition(image),
+            sliderRightPos: getSliderRightPosition(image),
         };
     });
 };
@@ -269,23 +437,43 @@ const savePreEditState = (images) => {
 const enterEditMode = () => {
     // Ищем все не скрытые изображения
     const images = document.querySelectorAll('.image:not(.hidden)');
-    const defaultButtons = document.querySelector('#defaultButtons');
-    const editModePanel = document.querySelector('#editModePanel');
 
     images.forEach((image) => {
-        const sliderLeft = image.querySelector('.image__slider_left');
-        const sliderRight = image.querySelector('.image__slider_right');
-
         // Показываем ползунки
-        sliderLeft?.classList.remove('hidden');
-        sliderRight?.classList.remove('hidden');
+        const sliderLeft = image.querySelector('.image__slider_left');
+        show(sliderLeft);
+
+        const sliderRight = image.querySelector('.image__slider_right');
+        show(sliderRight);
     });
 
     // Скрываем глобальные кнопки
-    defaultButtons?.classList.add('hidden');
+    const showAllImagesBlock = document.querySelector('#showAllImages');
+    hide(showAllImagesBlock);
+
+    const editButton = document.querySelector('#edit');
+    hide(editButton);
 
     // Отображаем панель редактирования
-    editModePanel?.classList.remove('hidden');
+    const background = document.querySelector('.globalButtons__editModeBackground');
+    show(background);
+
+    const label = document.querySelector('.globalButtons__editModeLabel');
+    show(label);
+
+    const confirmButton = document.querySelector('#confirmEdit');
+    show(confirmButton);
+
+    const cancelButton = document.querySelector('#cancelEdit');
+    show(cancelButton);
+
+    // Добавляем отдельный движок отмены действий
+    // Он будет действовать в рамках текущего режима редактирования
+    undoRedoEngines = [new UndoRedoEngine()].concat(undoRedoEngines);
+    undoRedoEngines.at(0)?.addEventListener('add', updateUndoRedoButtonStates);
+    undoRedoEngines.at(0)?.addEventListener('undo', updateUndoRedoButtonStates);
+    undoRedoEngines.at(0)?.addEventListener('redo', updateUndoRedoButtonStates);
+    updateUndoRedoButtonStates(undoRedoEngines.at(0).getCurrentState());
 
     // Сохраняем состояние видимых изображений до редактирования
     // К моменту сохранения состояния уже должны быть видны ползунки
@@ -295,23 +483,35 @@ const enterEditMode = () => {
 const exitEditMode = () => {
     // Ищем все не скрытые изображения
     const images = document.querySelectorAll('.image:not(.hidden)');
-    const defaultButtons = document.querySelector('#defaultButtons');
-    const editModePanel = document.querySelector('#editModePanel');
 
     images.forEach((image) => {
-        const sliderLeft = image.querySelector('.image__slider_left');
-        const sliderRight = image.querySelector('.image__slider_right');
-
         // Скрываем ползунки
-        sliderLeft?.classList.add('hidden');
-        sliderRight?.classList.add('hidden');
+        const sliderLeft = image.querySelector('.image__slider_left');
+        hide(sliderLeft);
+
+        const sliderRight = image.querySelector('.image__slider_right');
+        hide(sliderRight);
     });
 
     // Отображаем глобальные кнопки
-    defaultButtons?.classList.remove('hidden');
+    const showAllImagesBlock = document.querySelector('#showAllImages');
+    show(showAllImagesBlock);
+
+    const editButton = document.querySelector('#edit');
+    show(editButton);
 
     // Скрываем панель редактирования
-    editModePanel?.classList.add('hidden');
+    const background = document.querySelector('.globalButtons__editModeBackground');
+    hide(background);
+
+    const label = document.querySelector('.globalButtons__editModeLabel');
+    hide(label);
+
+    const confirmButton = document.querySelector('#confirmEdit');
+    hide(confirmButton);
+
+    const cancelButton = document.querySelector('#cancelEdit');
+    hide(cancelButton);
 };
 
 const editButtonClickHandler = (e) => {
@@ -325,6 +525,16 @@ const resetPreEditState = () => {
 const confirmEditButtonClickHandler = () => {
     resetPreEditState();
     exitEditMode();
+
+    if (undoRedoEngines.length > 1) {
+        // Достаём движок, который использовался в режиме редактирования
+        const engine = undoRedoEngines.shift();
+
+        // Объединяем его с движком текущим
+        undoRedoEngines.at(0).merge(engine);
+
+        updateUndoRedoButtonStates(undoRedoEngines.at(0).getCurrentState());
+    }
 };
 
 const recoverToPreEditState = () => {
@@ -344,6 +554,13 @@ const recoverToPreEditState = () => {
 const cancelEditButtonClickHandler = () => {
     recoverToPreEditState();
     exitEditMode();
+
+    if (undoRedoEngines.length > 1) {
+        // Достаём движок, который использовался в режиме редактирования
+        undoRedoEngines.shift();
+
+        updateUndoRedoButtonStates(undoRedoEngines.at(0).getCurrentState());
+    }
 };
 
 const initEditingButtons = () => {
@@ -357,7 +574,34 @@ const initEditingButtons = () => {
     cancelEditButton?.addEventListener('click', cancelEditButtonClickHandler);
 };
 
+const updateUndoRedoButtonStates = (state) => {
+    const undoButton = document.querySelector('#undo');
+    const redoButton = document.querySelector('#redo');
+    const {toUndo, toRedo} = state;
+    (toUndo === 0) ? disable(undoButton) : enable(undoButton);
+    (toRedo === 0) ? disable(redoButton) : enable(redoButton);
+};
+
+const initUndoRedoButtonsHandlers = () => {
+    const undoButton = document.querySelector('#undo');
+    disable(undoButton);
+    undoButton.addEventListener('click', () => {
+        undoRedoEngines.at(0)?.undo();
+    });
+
+    const redoButton = document.querySelector('#redo');
+    disable(redoButton);
+    redoButton.addEventListener('click', () => {
+        undoRedoEngines.at(0)?.redo();
+    });
+
+    undoRedoEngines.at(0)?.addEventListener('add', updateUndoRedoButtonStates);
+    undoRedoEngines.at(0)?.addEventListener('undo', updateUndoRedoButtonStates);
+    undoRedoEngines.at(0)?.addEventListener('redo', updateUndoRedoButtonStates);
+};
+
 document.addEventListener('DOMContentLoaded', () => {
+    initUndoRedoButtonsHandlers();
     initHideImageButtonsHandlers();
     initShowAllImagesButtonHandler();
     initImagesObserving();
